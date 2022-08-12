@@ -49,19 +49,23 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
     private static final Logger LOG = LoggerFactory.getLogger(JsonDebeziumSchemaSerializer.class);
     private static final String CHECK_SCHEMA_CHANGE_API = "http://%s/api/column_change_can_sync/default_cluster/%s/%s";
     private static final String SCHEMA_CHANGE_API = "http://%s/api/query/default_cluster/%s";
-    private static final Pattern ADD_DROP_DDL_PATTERN =
-            Pattern.compile("ALTER\\s+TABLE\\s+[^\\s]+\\s+(ADD|DROP)\\s+COLUMN\\s+.*", Pattern.CASE_INSENSITIVE);
-
     private static final String OP_READ = "r"; // snapshot read
     private static final String OP_CREATE = "c"; // insert
     private static final String OP_UPDATE = "u"; // update
     private static final String OP_DELETE = "d"; // delete
-
+    private static final String addDropDDLRegex = "ALTER\\s+TABLE\\s+[^\\s]+\\s+(ADD|DROP)\\s+COLUMN\\s+.*";
+    private final Pattern addDropDDLPattern;
     private DorisOptions dorisOptions;
     private ObjectMapper objectMapper = new ObjectMapper();
 
     public JsonDebeziumSchemaSerializer(DorisOptions dorisOptions) {
         this.dorisOptions = dorisOptions;
+        this.addDropDDLPattern = Pattern.compile(addDropDDLRegex, Pattern.CASE_INSENSITIVE);
+    }
+
+    public JsonDebeziumSchemaSerializer(DorisOptions dorisOptions, Pattern pattern) {
+        this.dorisOptions = dorisOptions;
+        this.addDropDDLPattern = pattern;
     }
 
     @Override
@@ -172,7 +176,7 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         if (!Objects.isNull(ddl)) {
             ddl = ddl.replaceAll("\n|\r", "");
             //filter add/drop operation
-            if (ADD_DROP_DDL_PATTERN.matcher(ddl).matches()) {
+            if (addDropDDLPattern.matcher(ddl).matches()) {
                 return ddl;
             }
         }

@@ -51,8 +51,10 @@ public class HttpPutBuilder {
         return this;
     }
 
-    public HttpPutBuilder addHiddenColumns() {
-        header.put("hidden_columns", LoadConstants.DORIS_DELETE_SIGN);
+    public HttpPutBuilder addHiddenColumns(boolean add) {
+        if(add){
+            header.put("hidden_columns", LoadConstants.DORIS_DELETE_SIGN);
+        }
         return this;
     }
 

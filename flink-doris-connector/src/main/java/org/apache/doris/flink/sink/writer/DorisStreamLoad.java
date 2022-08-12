@@ -235,14 +235,12 @@ public class DorisStreamLoad implements Serializable {
             putBuilder.setUrl(loadUrlStr)
                     .baseAuth(user, passwd)
                     .addCommonHeader()
+                    .addHiddenColumns(enableDelete)
                     .setLabel(label)
                     .setEntity(entity)
                     .addProperties(streamLoadProp);
             if (enable2PC) {
                 putBuilder.enable2PC();
-            }
-            if (enableDelete) {
-                putBuilder.addHiddenColumns();
             }
             pendingLoadFuture = executorService.submit(() -> {
                 LOG.info("start execute load");
