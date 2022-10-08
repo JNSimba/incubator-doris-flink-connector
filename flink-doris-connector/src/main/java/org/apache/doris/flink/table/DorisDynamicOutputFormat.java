@@ -26,11 +26,12 @@ import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.rest.models.Schema;
 import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.RowKind;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
+import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,7 +74,7 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
     private static final String NULL_VALUE = "\\N";
     private static final String ESCAPE_DELIMITERS_KEY = "escape_delimiters";
     private static final String ESCAPE_DELIMITERS_DEFAULT = "false";
-    private static final String DORIS_DELETE_SIGN = "__DORIS_DELETE_SIGN__";
+    public static final String DORIS_DELETE_SIGN = "__DORIS_DELETE_SIGN__";
     private static final String UNIQUE_KEYS_TYPE = "UNIQUE_KEYS";
     private final String[] fieldNames;
     private final boolean jsonFormat;
@@ -87,6 +88,7 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
     private DorisExecutionOptions executionOptions;
     private DorisStreamLoad dorisStreamLoad;
     private String keysType;
+    private JsonDebeziumSchemaSerializer schemaSerializer;
 
     private transient volatile boolean closed = false;
     private transient ScheduledExecutorService scheduler;
@@ -104,12 +106,18 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
         this.fieldNames = fieldNames;
         this.jsonFormat = FORMAT_JSON_VALUE.equals(executionOptions.getStreamLoadProp().getProperty(FORMAT_KEY));
         this.keysType = parseKeysType();
-
         handleStreamloadProp();
         this.fieldGetters = new RowData.FieldGetter[logicalTypes.length];
         for (int i = 0; i < logicalTypes.length; i++) {
             fieldGetters[i] = createFieldGetter(logicalTypes[i], i);
         }
+
+        // cdc ddl parttern,default is JsonDebeziumSchemaSerializer.addDropDDLRegex
+        Pattern cdcDDLPattern = null;
+        if(executionOptions.getStreamLoadProp().containsKey("cdc_ddl_pattern")){
+            cdcDDLPattern = Pattern.compile(executionOptions.getStreamLoadProp().getProperty("cdc_ddl_pattern"), Pattern.CASE_INSENSITIVE);
+        }
+        this.schemaSerializer = new JsonDebeziumSchemaSerializer(options,cdcDDLPattern);
     }
 
     /**
@@ -192,7 +200,8 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
                 options.getTableIdentifier().split("\\.")[1],
                 options.getUsername(),
                 options.getPassword(),
-                executionOptions.getStreamLoadProp());
+                executionOptions.getStreamLoadProp(),
+                executionOptions.getEnableDelete());
         LOG.info("Streamload BE:{}", dorisStreamLoad.getLoadUrlStr());
 
         if (executionOptions.getBatchIntervalMs() != 0 && executionOptions.getBatchSize() != 1) {
@@ -228,7 +237,7 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
         }
     }
 
-    private void addBatch(T row) {
+    private void addBatch(T row) throws IOException {
         if (row instanceof RowData) {
             RowData rowData = (RowData) row;
             Map<String, String> valueMap = new HashMap<>();
@@ -259,8 +268,19 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
             Object data = jsonFormat ? valueMap : value.toString();
             batch.add(data);
         } else if (row instanceof String) {
-            batchBytes += ((String) row).getBytes(StandardCharsets.UTF_8).length;
-            batch.add(row);
+            if(!executionOptions.getEnableSchemaChange()){
+                //common string
+                batchBytes += ((String) row).getBytes(StandardCharsets.UTF_8).length;
+                batch.add(row);
+            }else{
+                //cdc string
+                String record = schemaSerializer.serialize((String) row);
+                if(!StringUtils.isNullOrWhitespaceOnly(record)){
+                    batchBytes += record.getBytes(StandardCharsets.UTF_8).length;
+                    System.out.println(record);
+                    batch.add(record);
+                }
+            }
         } else {
             throw new RuntimeException("The type of element should be 'RowData' or 'String' only.");
         }

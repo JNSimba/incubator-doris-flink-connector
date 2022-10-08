@@ -74,8 +74,9 @@ public class DorisStreamLoad implements Serializable {
                 }
             });
     private CloseableHttpClient httpClient;
+    private boolean enableDelete;
 
-    public DorisStreamLoad(String hostPort, String db, String tbl, String user, String passwd, Properties streamLoadProp) {
+    public DorisStreamLoad(String hostPort, String db, String tbl, String user, String passwd, Properties streamLoadProp, boolean enableDelete) {
         this.hostPort = hostPort;
         this.db = db;
         this.tbl = tbl;
@@ -85,6 +86,7 @@ public class DorisStreamLoad implements Serializable {
         this.authEncoding = basicAuthHeader(user, passwd);
         this.streamLoadProp = streamLoadProp;
         this.httpClient = httpClientBuilder.build();
+        this.enableDelete = enableDelete;
     }
 
     public String getLoadUrlStr() {
@@ -125,6 +127,9 @@ public class DorisStreamLoad implements Serializable {
 
         try {
             HttpPut put = new HttpPut(loadUrlStr);
+            if(enableDelete){
+                put.setHeader("hidden_columns", DorisDynamicOutputFormat.DORIS_DELETE_SIGN);
+            }
             put.setHeader(HttpHeaders.EXPECT, "100-continue");
             put.setHeader(HttpHeaders.AUTHORIZATION, this.authEncoding);
             put.setHeader("label", label);

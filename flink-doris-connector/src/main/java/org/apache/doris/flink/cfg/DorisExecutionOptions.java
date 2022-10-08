@@ -45,8 +45,9 @@ public class DorisExecutionOptions implements Serializable {
 
     private final Boolean enableDelete;
 
+    private final Boolean enableSchemaChange;
 
-    public DorisExecutionOptions(Integer batchSize, Integer maxRetries, Long batchIntervalMs, Properties streamLoadProp, Boolean enableDelete, Long maxBatchBytes) {
+    public DorisExecutionOptions(Integer batchSize, Integer maxRetries, Long batchIntervalMs, Properties streamLoadProp, Boolean enableDelete, Long maxBatchBytes,Boolean enableSchemaChange){
         Preconditions.checkArgument(maxRetries >= 0);
         Preconditions.checkArgument(maxBatchBytes >= 0);
         this.batchSize = batchSize;
@@ -55,6 +56,11 @@ public class DorisExecutionOptions implements Serializable {
         this.streamLoadProp = streamLoadProp;
         this.enableDelete = enableDelete;
         this.maxBatchBytes = maxBatchBytes;
+        this.enableSchemaChange = enableSchemaChange;
+    }
+
+    public DorisExecutionOptions(Integer batchSize, Integer maxRetries, Long batchIntervalMs, Properties streamLoadProp, Boolean enableDelete, Long maxBatchBytes) {
+        this(batchSize,maxRetries,batchIntervalMs,streamLoadProp,enableDelete,maxBatchBytes,false);
     }
 
     public static Builder builder() {
@@ -92,6 +98,10 @@ public class DorisExecutionOptions implements Serializable {
         return maxBatchBytes;
     }
 
+    public Boolean getEnableSchemaChange() {
+        return enableSchemaChange;
+    }
+
     /**
      * Builder of {@link DorisExecutionOptions}.
      */
@@ -101,6 +111,7 @@ public class DorisExecutionOptions implements Serializable {
         private Long batchIntervalMs = DEFAULT_INTERVAL_MILLIS;
         private Properties streamLoadProp = new Properties();
         private Boolean enableDelete = false;
+        private Boolean enableSchemaChange = false;
         private Long maxBatchBytes = DEFAULT_MAX_BATCH_BYTES;
 
         public Builder setBatchSize(Integer batchSize) {
@@ -133,8 +144,13 @@ public class DorisExecutionOptions implements Serializable {
             return this;
         }
 
+        public Builder setEnableSchemaChange(Boolean enableSchemaChange) {
+            this.enableSchemaChange = enableSchemaChange;
+            return this;
+        }
+
         public DorisExecutionOptions build() {
-            return new DorisExecutionOptions(batchSize, maxRetries, batchIntervalMs, streamLoadProp, enableDelete, maxBatchBytes);
+            return new DorisExecutionOptions(batchSize, maxRetries, batchIntervalMs, streamLoadProp, enableDelete, maxBatchBytes, enableSchemaChange);
         }
     }
 
