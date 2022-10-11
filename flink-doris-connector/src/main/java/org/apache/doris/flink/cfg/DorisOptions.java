@@ -54,7 +54,7 @@ public class DorisOptions extends DorisConnectionOptions {
      * Builder of {@link DorisOptions}.
      */
     public static class Builder {
-        private String fenodes;
+        private String loadUrl;
         private String username;
         private String password;
         private String tableIdentifier;
@@ -86,18 +86,17 @@ public class DorisOptions extends DorisConnectionOptions {
         /**
          * required, Frontend Http Rest url.
          */
-        public Builder setFenodes(String fenodes) {
-            this.fenodes = fenodes;
+        public Builder setLoadUrl(String loadUrl) {
+            this.loadUrl = loadUrl;
             return this;
         }
 
 
         public DorisOptions build() {
-            checkNotNull(fenodes, "No fenodes supplied.");
+            checkNotNull(loadUrl, "No load-url supplied.");
             checkNotNull(tableIdentifier, "No tableIdentifier supplied.");
-            return new DorisOptions(fenodes, username, password, tableIdentifier);
+            return new DorisOptions(loadUrl, username, password, tableIdentifier);
         }
     }
-
 
 }

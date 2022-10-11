@@ -79,7 +79,7 @@ public class OptionUtils {
 
     public static DorisOptions buildDorisOptions() {
         DorisOptions.Builder builder = DorisOptions.builder();
-        builder.setFenodes("127.0.0.1:8030")
+        builder.setLoadUrl("127.0.0.1:8030")
                 .setTableIdentifier("db.table")
                 .setUsername("root")
                 .setPassword("");

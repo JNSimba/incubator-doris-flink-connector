@@ -34,9 +34,9 @@ import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE_
 
 public class DorisConfigOptions {
 
-    public static final String IDENTIFIER = "doris";
+    public static final String IDENTIFIER = "selectdb";
     // common option
-    public static final ConfigOption<String> FENODES = ConfigOptions.key("fenodes").stringType().noDefaultValue().withDescription("doris fe http address.");
+    public static final ConfigOption<String> LOAD_URL = ConfigOptions.key("load-url").stringType().noDefaultValue().withDescription("doris load http address.");
     public static final ConfigOption<String> TABLE_IDENTIFIER = ConfigOptions.key("table.identifier").stringType().noDefaultValue().withDescription("the doris table name.");
     public static final ConfigOption<String> USERNAME = ConfigOptions.key("username").stringType().noDefaultValue().withDescription("the doris user name.");
     public static final ConfigOption<String> PASSWORD = ConfigOptions.key("password").stringType().noDefaultValue().withDescription("the doris password.");

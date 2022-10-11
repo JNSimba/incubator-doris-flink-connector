@@ -36,7 +36,7 @@ public class DorisSinkSQLExample {
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         List<Tuple2<String, Integer>> data = new ArrayList<>();
-        data.add(new Tuple2<>("doris",1));
+        data.add(new Tuple2<>("doris1",2));
         DataStreamSource<Tuple2<String, Integer>> source = env.fromCollection(data);
         tEnv.createTemporaryView("doris_test",source,$("name"),$("age"));
 
@@ -46,16 +46,15 @@ public class DorisSinkSQLExample {
                         "age INT" +
                         ") " +
                         "WITH (\n" +
-                        "  'connector' = 'doris',\n" +
-                        "  'fenodes' = 'FE_IP:8030',\n" +
-                        "  'table.identifier' = 'db.table',\n" +
-                        "  'username' = 'root',\n" +
+                        "  'connector' = 'selectdb',\n" +
+                        "  'load-url' = '127.0.0.1:8040',\n" +
+                        "  'table.identifier' = 'test.test_flink',\n" +
+                        "  'username' = 'admin',\n" +
                         "  'password' = '',\n" +
                         "  'sink.properties.format' = 'json',\n" +
-                        "  'sink.buffer-count' = '4',\n" +
-                        "  'sink.buffer-size' = '4086'," +
-                        "  'sink.label-prefix' = 'doris_label',\n" +
-                        "  'sink.properties.read_json_by_line' = 'true'\n" +
+                        "  'sink.label-prefix' = 'doris_label1',\n" +
+                        "  'sink.properties.read_json_by_line' = 'true',\n" +
+                        "  'sink.enable-2pc' = 'false'\n" +
                         ")");
         tEnv.executeSql("INSERT INTO doris_test_sink select name,age from doris_test");
     }

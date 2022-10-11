@@ -72,7 +72,6 @@ import java.util.function.Predicate;
 
 import static org.apache.doris.flink.catalog.DorisCatalogOptions.DEFAULT_DATABASE;
 import static org.apache.doris.flink.catalog.DorisCatalogOptions.JDBCURL;
-import static org.apache.doris.flink.table.DorisConfigOptions.FENODES;
 import static org.apache.doris.flink.table.DorisConfigOptions.IDENTIFIER;
 import static org.apache.doris.flink.table.DorisConfigOptions.PASSWORD;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_LABEL_PREFIX;
@@ -225,9 +224,9 @@ public class DorisCatalog extends AbstractCatalog {
         String tableName = tablePath.getObjectName();
         Map<String, String> props = new HashMap<>(properties);
         props.put(CONNECTOR.key(), IDENTIFIER);
-        if (!props.containsKey(FENODES.key())) {
-            props.put(FENODES.key(), queryFenodes());
-        }
+//        if (!props.containsKey(LOAD_URL.key())) {
+//            props.put(LOAD_URL.key(), queryFenodes());
+//        }
         props.put(USERNAME.key(), username);
         props.put(PASSWORD.key(), password);
         props.put(TABLE_IDENTIFIER.key(), databaseName + "." + tableName);

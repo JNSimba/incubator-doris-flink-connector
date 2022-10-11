@@ -38,7 +38,7 @@ import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_QUER
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_READ_TIMEOUT_MS;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_REQUEST_RETRIES;
 import static org.apache.doris.flink.table.DorisConfigOptions.DORIS_TABLET_SIZE;
-import static org.apache.doris.flink.table.DorisConfigOptions.FENODES;
+import static org.apache.doris.flink.table.DorisConfigOptions.LOAD_URL;
 import static org.apache.doris.flink.table.DorisConfigOptions.IDENTIFIER;
 import static org.apache.doris.flink.table.DorisConfigOptions.PASSWORD;
 import static org.apache.doris.flink.table.DorisConfigOptions.SINK_BUFFER_COUNT;
@@ -78,7 +78,7 @@ public class DorisCatalogFactory implements CatalogFactory {
         options.add(JDBCURL);
         options.add(DEFAULT_DATABASE);
 
-        options.add(FENODES);
+        options.add(LOAD_URL);
         options.add(TABLE_IDENTIFIER);
         options.add(USERNAME);
         options.add(PASSWORD);

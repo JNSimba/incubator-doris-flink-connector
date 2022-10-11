@@ -17,18 +17,16 @@
 
 package org.apache.doris.flink.sink.committer;
 
-import org.apache.flink.api.connector.sink.Committer;
-
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisRuntimeException;
-import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.sink.DorisCommittable;
 import org.apache.doris.flink.sink.HttpPutBuilder;
 import org.apache.doris.flink.sink.HttpUtil;
 import org.apache.doris.flink.sink.ResponseUtil;
+import org.apache.flink.api.connector.sink.Committer;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.util.EntityUtils;
@@ -90,14 +88,12 @@ public class DorisCommitter implements Committer<DorisCommittable> {
             try {
                 response = httpClient.execute(putBuilder.build());
             } catch (IOException e) {
-                hostPort = RestService.getBackend(dorisOptions, dorisReadOptions, LOG);
                 continue;
             }
             statusCode = response.getStatusLine().getStatusCode();
             reasonPhrase = response.getStatusLine().getReasonPhrase();
             if (statusCode != 200) {
                 LOG.warn("commit failed with {}, reason {}", hostPort, reasonPhrase);
-                hostPort = RestService.getBackend(dorisOptions, dorisReadOptions, LOG);
             } else {
                 break;
             }

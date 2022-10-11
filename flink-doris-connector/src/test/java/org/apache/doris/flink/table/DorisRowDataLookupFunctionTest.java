@@ -115,7 +115,7 @@ public class DorisRowDataLookupFunctionTest {
 
 
     private DorisRowDataLookupFunction buildRowDataLookupFunction(DorisLookupOptions lookupOptions) {
-        DorisOptions dorisOptions = DorisOptions.builder().setFenodes(TEST_FENODES)
+        DorisOptions dorisOptions = DorisOptions.builder().setLoadUrl(TEST_FENODES)
                 .setTableIdentifier(LOOKUP_TABLE)
                 .setUsername("root")
                 .setPassword("")

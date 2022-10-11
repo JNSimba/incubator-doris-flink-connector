@@ -19,9 +19,7 @@ package org.apache.doris.flink.table;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
-import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.sink.DorisSink;
-
 import org.apache.doris.flink.sink.writer.RowDataSerializer;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
@@ -29,7 +27,6 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.SinkProvider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.types.RowKind;
-
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,7 +74,8 @@ public class DorisDynamicTableSink implements DynamicTableSink {
     @Override
     public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
         Properties loadProperties = executionOptions.getStreamLoadProp();
-        boolean deletable = RestService.isUniqueKeyType(options, readOptions, LOG) && executionOptions.getDeletable();
+        //boolean deletable = RestService.isUniqueKeyType(options, readOptions, LOG) && executionOptions.getDeletable();
+        boolean deletable = executionOptions.getDeletable();
         if (!loadProperties.containsKey(COLUMNS_KEY)) {
             String[] fieldNames = tableSchema.getFieldNames();
             Preconditions.checkState(fieldNames != null && fieldNames.length > 0);

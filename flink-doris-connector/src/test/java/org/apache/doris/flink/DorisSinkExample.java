@@ -61,14 +61,15 @@ public class DorisSinkExample {
         properties.setProperty("line_delimiter", "\n");
         properties.setProperty("format", "csv");
         DorisOptions.Builder dorisBuilder = DorisOptions.builder();
-        dorisBuilder.setFenodes("127.0.0.1:8040")
-                .setTableIdentifier("db.table")
-                .setUsername("test")
-                .setPassword("test");
+        dorisBuilder.setLoadUrl("127.0.0.1:8040")
+                .setTableIdentifier("test.test_flink")
+                .setUsername("admin")
+                .setPassword("");
         DorisExecutionOptions.Builder  executionBuilder = DorisExecutionOptions.builder();
         executionBuilder.setLabelPrefix("label-doris")
                 .setStreamLoadProp(properties)
                 .setBufferSize(8*1024)
+                .disable2PC()
                 .setBufferCount(3);
 
         builder.setDorisReadOptions(readOptionBuilder.build())
@@ -77,7 +78,7 @@ public class DorisSinkExample {
                 .setDorisOptions(dorisBuilder.build());
 
         List<Tuple2<String, Integer>> data = new ArrayList<>();
-        data.add(new Tuple2<>("doris",1));
+        data.add(new Tuple2<>("doris10",1));
         DataStreamSource<Tuple2<String, Integer>> source = env.fromCollection(data);
         source.map((MapFunction<Tuple2<String, Integer>, String>) t -> t.f0 + "," + t.f1)
                 .sinkTo(builder.build());
