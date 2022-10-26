@@ -26,27 +26,29 @@ import org.apache.doris.flink.rest.RestService;
 import org.apache.doris.flink.rest.models.Schema;
 import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.RowKind;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.StringJoiner;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -78,7 +80,7 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
     private final String[] fieldNames;
     private final boolean jsonFormat;
     private final RowData.FieldGetter[] fieldGetters;
-    private final List batch = new ArrayList<>();
+    private final BlockingQueue batch;
     private long batchBytes = 0L;
     private String fieldDelimiter;
     private String lineDelimiter;
@@ -87,6 +89,7 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
     private DorisExecutionOptions executionOptions;
     private DorisStreamLoad dorisStreamLoad;
     private String keysType;
+    private Lock lock = new ReentrantLock();
 
     private transient volatile boolean closed = false;
     private transient ScheduledExecutorService scheduler;
@@ -101,6 +104,7 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
         this.options = option;
         this.readOptions = readOptions;
         this.executionOptions = executionOptions;
+        this.batch = new ArrayBlockingQueue(executionOptions.getBatchSize());
         this.fieldNames = fieldNames;
         this.jsonFormat = FORMAT_JSON_VALUE.equals(executionOptions.getStreamLoadProp().getProperty(FORMAT_KEY));
         this.keysType = parseKeysType();
@@ -195,21 +199,20 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
                 executionOptions.getStreamLoadProp());
         LOG.info("Streamload BE:{}", dorisStreamLoad.getLoadUrlStr());
 
-        if (executionOptions.getBatchIntervalMs() != 0 && executionOptions.getBatchSize() != 1) {
-            this.scheduler = Executors.newScheduledThreadPool(1, new ExecutorThreadFactory("doris-streamload-output" +
-                    "-format"));
-            this.scheduledFuture = this.scheduler.scheduleWithFixedDelay(() -> {
-                synchronized (DorisDynamicOutputFormat.this) {
-                    if (!closed) {
-                        try {
-                            flush();
-                        } catch (Exception e) {
-                            flushException = e;
-                        }
-                    }
+        this.scheduler = Executors.newScheduledThreadPool(1, new ExecutorThreadFactory("doris-streamload-output-format"));
+        this.scheduledFuture = this.scheduler.scheduleWithFixedDelay(() -> {
+            lock.lock();
+            if (!closed) {
+                try {
+                    LOG.info("trigger sink to stream load");
+                    flush();
+                } catch (Exception e) {
+                    flushException = e;
                 }
-            }, executionOptions.getBatchIntervalMs(), executionOptions.getBatchIntervalMs(), TimeUnit.MILLISECONDS);
-        }
+            }
+            lock.unlock();
+        }, 1, executionOptions.getBatchIntervalMs(), TimeUnit.MILLISECONDS);
+
     }
 
     private void checkFlushException() {
@@ -221,14 +224,15 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
     @Override
     public synchronized void writeRecord(T row) throws IOException {
         checkFlushException();
-        addBatch(row);
-        if ((executionOptions.getBatchSize() > 0 && batch.size() >= executionOptions.getBatchSize())
-                || batchBytes >= executionOptions.getMaxBatchBytes()) {
-            flush();
+        try {
+            addBatch(row);
+        } catch (InterruptedException e) {
+            LOG.error("add batch unexpectedly, interrupted", e);
+            throw new IOException(e);
         }
     }
 
-    private void addBatch(T row) {
+    private void addBatch(T row) throws InterruptedException {
         if (row instanceof RowData) {
             RowData rowData = (RowData) row;
             Map<String, String> valueMap = new HashMap<>();
@@ -257,10 +261,10 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
                 }
             }
             Object data = jsonFormat ? valueMap : value.toString();
-            batch.add(data);
+            batch.put(data);
         } else if (row instanceof String) {
             batchBytes += ((String) row).getBytes(StandardCharsets.UTF_8).length;
-            batch.add(row);
+            batch.put(row);
         } else {
             throw new RuntimeException("The type of element should be 'RowData' or 'String' only.");
         }
@@ -275,7 +279,6 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
             throw new RuntimeException("Unrecognized row kind:" + rowKind.toString());
         }
     }
-
 
     @Override
     public synchronized void close() throws IOException {
@@ -299,14 +302,14 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
         checkFlushException();
     }
 
-    public synchronized void flush() throws IOException {
+    public  void flush() throws IOException {
         checkFlushException();
         if (batch.isEmpty()) {
             return;
         }
         String result;
         if (jsonFormat) {
-            if (batch.get(0) instanceof String) {
+            if (batch.peek() instanceof String) {
                 result = batch.toString();
             } else {
                 result = OBJECT_MAPPER.writeValueAsString(batch);
@@ -335,6 +338,7 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
                 }
             }
         }
+
     }
 
     private String getBackend() throws IOException {
