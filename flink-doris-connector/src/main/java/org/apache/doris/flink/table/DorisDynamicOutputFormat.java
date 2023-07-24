@@ -103,7 +103,7 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
         this.executionOptions = executionOptions;
         this.fieldNames = fieldNames;
         this.jsonFormat = FORMAT_JSON_VALUE.equals(executionOptions.getStreamLoadProp().getProperty(FORMAT_KEY));
-        this.keysType = parseKeysType();
+        //this.keysType = parseKeysType();
 
         handleStreamloadProp();
         this.fieldGetters = new RowData.FieldGetter[logicalTypes.length];
@@ -177,7 +177,7 @@ public class DorisDynamicOutputFormat<T> extends RichOutputFormat<T> {
     }
 
     private boolean enableBatchDelete() {
-        return executionOptions.getEnableDelete() || UNIQUE_KEYS_TYPE.equals(keysType);
+        return executionOptions.getEnableDelete(); //|| UNIQUE_KEYS_TYPE.equals(keysType);
     }
 
     @Override
