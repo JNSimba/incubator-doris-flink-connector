@@ -99,6 +99,50 @@ public class RespContent {
         return existingJobStatus;
     }
 
+    public long getNumberTotalRows() {
+        return numberTotalRows;
+    }
+
+    public long getNumberLoadedRows() {
+        return numberLoadedRows;
+    }
+
+    public int getNumberFilteredRows() {
+        return numberFilteredRows;
+    }
+
+    public int getNumberUnselectedRows() {
+        return numberUnselectedRows;
+    }
+
+    public long getLoadBytes() {
+        return loadBytes;
+    }
+
+    public int getLoadTimeMs() {
+        return loadTimeMs;
+    }
+
+    public int getBeginTxnTimeMs() {
+        return beginTxnTimeMs;
+    }
+
+    public int getStreamLoadPutTimeMs() {
+        return streamLoadPutTimeMs;
+    }
+
+    public int getReadDataTimeMs() {
+        return readDataTimeMs;
+    }
+
+    public int getWriteDataTimeMs() {
+        return writeDataTimeMs;
+    }
+
+    public int getCommitAndPublishTimeMs() {
+        return commitAndPublishTimeMs;
+    }
+
     @Override
     public String toString() {
         ObjectMapper mapper = new ObjectMapper();

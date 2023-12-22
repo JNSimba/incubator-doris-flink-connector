@@ -17,10 +17,12 @@
 
 package org.apache.doris.flink.sink.writer;
 
+import org.apache.doris.flink.sink.metrics.DorisSinkMetrics;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.StatefulSink;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
+import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
@@ -82,6 +84,8 @@ public class DorisWriter<IN>
     private transient Thread executorThread;
     private transient volatile Exception loadException = null;
     private BackendUtil backendUtil;
+    private SinkWriterMetricGroup sinkMetricGroup;
+    private Map<String, DorisSinkMetrics> sinkMetricsMap = new ConcurrentHashMap<>();
 
     public DorisWriter(
             Sink.InitContext initContext,
@@ -107,7 +111,7 @@ public class DorisWriter<IN>
         this.executionOptions = executionOptions;
         this.intervalTime = executionOptions.checkInterval();
         this.globalLoading = false;
-
+        this.sinkMetricGroup = initContext.metricGroup();
         initializeLoad(state);
     }
 
@@ -187,8 +191,17 @@ public class DorisWriter<IN>
             streamLoader.startLoad(currentLabel, false);
             loadingMap.put(tableKey, true);
             globalLoading = true;
+            registerMetrics(tableKey);
         }
         streamLoader.writeRecord(record.getRow());
+    }
+
+    private void registerMetrics(String tableKey) {
+        if(!sinkMetricsMap.containsKey(tableKey)){
+            DorisSinkMetrics metrics = DorisSinkMetrics.of(tableKey);
+            metrics.register(sinkMetricGroup, subtaskId);
+            sinkMetricsMap.put(tableKey, metrics);
+        }
     }
 
     @Override
@@ -231,6 +244,10 @@ public class DorisWriter<IN>
                 committableList.add(
                         new DorisCommittable(
                                 dorisStreamLoad.getHostPort(), dorisStreamLoad.getDb(), txnId));
+            }
+            // refresh metrics
+            if(sinkMetricsMap.containsKey(tableIdentifier)) {
+                sinkMetricsMap.get(tableIdentifier).refresh(respContent);
             }
         }
         // clean loadingMap
