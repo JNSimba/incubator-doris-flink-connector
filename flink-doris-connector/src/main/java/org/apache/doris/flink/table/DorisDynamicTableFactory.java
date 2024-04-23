@@ -30,6 +30,7 @@ import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.TableSchemaUtils;
+import org.apache.flink.table.factories.FactoryUtil;
 
 import java.time.Duration;
 import java.util.HashSet;
@@ -167,6 +168,8 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
             .defaultValue(false)
             .withDescription("Whether to read data using the new interface defined according to the FLIP-27 specification,default false");
 
+    public static final ConfigOption<Integer> SINK_PARALLELISM = FactoryUtil.SINK_PARALLELISM;
+
     @Override
     public String factoryIdentifier() {
         return "doris"; // used for matching to `connector = '...'`
@@ -208,6 +211,7 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         options.add(SINK_LABEL_PREFIX);
         options.add(SINK_BUFFER_SIZE);
         options.add(SINK_BUFFER_COUNT);
+        options.add(SINK_PARALLELISM);
 
         options.add(SOURCE_USE_OLD_API);
         return options;
@@ -295,6 +299,8 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
 
         // validate all options
         helper.validateExcept(STREAM_LOAD_PROP_PREFIX);
+        // sink parallelism
+        final Integer parallelism = helper.getOptions().get(SINK_PARALLELISM);
 
         Properties streamLoadProp = getStreamLoadProp(context.getCatalogTable().getOptions());
         TableSchema physicalSchema =
@@ -304,7 +310,8 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
                 getDorisOptions(helper.getOptions()),
                 getDorisReadOptions(helper.getOptions()),
                 getDorisExecutionOptions(helper.getOptions(), streamLoadProp),
-                physicalSchema
+                physicalSchema,
+                parallelism
         );
     }
 }
