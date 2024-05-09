@@ -66,6 +66,7 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
     private final DorisReadOptions dorisReadOptions;
     private final DorisExecutionOptions executionOptions;
     private final String labelPrefix;
+    private final int subtaskId;
     private final LabelGenerator labelGenerator;
     private final int intervalTime;
     private final DorisWriterState dorisWriterState;
@@ -91,6 +92,7 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
         LOG.info("labelPrefix " + executionOptions.getLabelPrefix());
         this.dorisWriterState = new DorisWriterState(executionOptions.getLabelPrefix());
         this.labelPrefix = executionOptions.getLabelPrefix() + "_" + initContext.getSubtaskId();
+        this.subtaskId = initContext.getSubtaskId();
         this.labelGenerator = new LabelGenerator(labelPrefix, executionOptions.enabled2PC());
         this.scheduledExecutorService = new ScheduledThreadPoolExecutor(1, new ExecutorThreadFactory("stream-load-check"));
         this.serializer = serializer;
@@ -240,7 +242,7 @@ public class DorisWriter<IN> implements SinkWriter<IN, DorisCommittable, DorisWr
     public String getAvailableBackend() {
         long tmp = pos + backends.size();
         while (pos < tmp) {
-            BackendV2.BackendRowV2 backend = backends.get((int) (pos % backends.size()));
+            BackendV2.BackendRowV2 backend = backends.get((int) ((pos + subtaskId) % backends.size()));
             String res = backend.toBackendString();
             if(tryHttpConnection(res)){
                 pos++;
