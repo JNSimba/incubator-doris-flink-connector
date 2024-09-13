@@ -43,7 +43,7 @@ import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE_
 @PublicEvolving
 public class DorisConfigOptions {
 
-    public static final String IDENTIFIER = "doris";
+    public static final String IDENTIFIER = "selectdb-preview";
     // common option
     public static final ConfigOption<String> FENODES =
             ConfigOptions.key("fenodes")
