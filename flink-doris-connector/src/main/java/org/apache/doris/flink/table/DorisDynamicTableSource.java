@@ -90,6 +90,11 @@ public final class DorisDynamicTableSource
 
     @Override
     public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
+        if (StringUtils.isNullOrWhitespaceOnly(readOptions.getFilterQuery())) {
+            String filterQuery = resolvedFilterQuery.stream().collect(Collectors.joining(" AND "));
+            readOptions.setFilterQuery(filterQuery);
+        }
+
         if (StringUtils.isNullOrWhitespaceOnly(readOptions.getReadFields())) {
             String[] selectFields =
                     DataType.getFieldNames(physicalRowDataType).toArray(new String[0]);
@@ -123,7 +128,6 @@ public final class DorisDynamicTableSource
                     DorisSource.<RowData>builder()
                             .setDorisReadOptions(readOptions)
                             .setDorisOptions(options)
-                            .setResolvedFilterQuery(resolvedFilterQuery)
                             .setDeserializer(
                                     new RowDataDeserializationSchema(
                                             (RowType) physicalRowDataType.getLogicalType()))
@@ -166,9 +170,14 @@ public final class DorisDynamicTableSource
 
     @Override
     public DynamicTableSource copy() {
+        // filterQuery/readFields of readOption may be overwritten in union all sql
         DorisDynamicTableSource newSource =
                 new DorisDynamicTableSource(
-                        options, readOptions, lookupOptions, physicalSchema, physicalRowDataType);
+                        options,
+                        readOptions.copy(),
+                        lookupOptions,
+                        physicalSchema,
+                        physicalRowDataType);
         newSource.resolvedFilterQuery = new ArrayList<>(this.resolvedFilterQuery);
         return newSource;
     }
