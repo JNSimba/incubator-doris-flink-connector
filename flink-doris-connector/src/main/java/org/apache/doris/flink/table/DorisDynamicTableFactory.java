@@ -19,6 +19,16 @@ package org.apache.doris.flink.table;
 import org.apache.doris.flink.cfg.DorisExecutionOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+
+import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_BATCH_SIZE_DEFAULT;
+import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_DESERIALIZE_ARROW_ASYNC_DEFAULT;
+import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_DESERIALIZE_QUEUE_SIZE_DEFAULT;
+import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_EXEC_MEM_LIMIT_DEFAULT;
+import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_CONNECT_TIMEOUT_MS_DEFAULT;
+import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_QUERY_TIMEOUT_S_DEFAULT;
+import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_READ_TIMEOUT_MS_DEFAULT;
+import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_RETRIES_DEFAULT;
+import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE_DEFAULT;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
@@ -30,23 +40,12 @@ import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.TableSchemaUtils;
-import org.apache.flink.table.factories.FactoryUtil;
 
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-
-import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_BATCH_SIZE_DEFAULT;
-import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_DESERIALIZE_ARROW_ASYNC_DEFAULT;
-import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_DESERIALIZE_QUEUE_SIZE_DEFAULT;
-import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_EXEC_MEM_LIMIT_DEFAULT;
-import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_CONNECT_TIMEOUT_MS_DEFAULT;
-import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_QUERY_TIMEOUT_S_DEFAULT;
-import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_READ_TIMEOUT_MS_DEFAULT;
-import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_REQUEST_RETRIES_DEFAULT;
-import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE_DEFAULT;
 
 /**
  * The {@link DorisDynamicTableFactory} translates the catalog table to a table source.
@@ -60,6 +59,7 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
     public static final ConfigOption<String> TABLE_IDENTIFIER = ConfigOptions.key("table.identifier").stringType().noDefaultValue().withDescription("the jdbc table name.");
     public static final ConfigOption<String> USERNAME = ConfigOptions.key("username").stringType().noDefaultValue().withDescription("the jdbc user name.");
     public static final ConfigOption<String> PASSWORD = ConfigOptions.key("password").stringType().noDefaultValue().withDescription("the jdbc password.");
+    public static final ConfigOption<Boolean> AUTO_REDIRECT = ConfigOptions.key("auto-redirect").booleanType().defaultValue(false).withDescription("Use automatic redirection of fe without explicitly obtaining the be list");
     // Prefix for Doris StreamLoad specific properties.
     public static final String STREAM_LOAD_PROP_PREFIX = "sink.properties.";
     // doris options
@@ -138,7 +138,7 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
     private static final ConfigOption<Integer> SINK_BUFFER_SIZE = ConfigOptions
             .key("sink.buffer-size")
             .intType()
-            .defaultValue(256 * 1024)
+            .defaultValue(1024 * 1024)
             .withDescription("the buffer size to cache data for stream load.");
     private static final ConfigOption<Integer> SINK_BUFFER_COUNT = ConfigOptions
             .key("sink.buffer-count")
@@ -190,6 +190,7 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         options.add(TABLE_IDENTIFIER);
         options.add(USERNAME);
         options.add(PASSWORD);
+        options.add(AUTO_REDIRECT);
 
         options.add(DORIS_READ_FIELD);
         options.add(DORIS_FILTER_QUERY);
@@ -240,6 +241,7 @@ public final class DorisDynamicTableFactory implements DynamicTableSourceFactory
         final String fenodes = readableConfig.get(FENODES);
         final DorisOptions.Builder builder = DorisOptions.builder()
                 .setFenodes(fenodes)
+                .setAutoRedirect(readableConfig.get(AUTO_REDIRECT))
                 .setTableIdentifier(readableConfig.get(TABLE_IDENTIFIER));
 
         readableConfig.getOptional(USERNAME).ifPresent(builder::setUsername);

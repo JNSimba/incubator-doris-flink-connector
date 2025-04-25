@@ -23,6 +23,7 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.DefaultRedirectStrategy;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.http.protocol.HttpRequestExecutor;
 
 import java.util.concurrent.TimeUnit;
 
@@ -38,6 +39,7 @@ public class HttpUtil {
 
     private final HttpClientBuilder httpClientBuilder = HttpClients
             .custom()
+            .setRequestExecutor(new HttpRequestExecutor(60 * 1000))
             .setRedirectStrategy(new DefaultRedirectStrategy() {
                 @Override
                 protected boolean isRedirectable(String method) {

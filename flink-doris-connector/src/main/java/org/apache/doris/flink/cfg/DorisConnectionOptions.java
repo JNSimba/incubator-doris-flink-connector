@@ -30,11 +30,23 @@ public class DorisConnectionOptions implements Serializable {
     protected final String fenodes;
     protected final String username;
     protected final String password;
+    /**
+     * Used to enable automatic redirection of fe,
+     * When it is not enabled, it will actively request the be list, and the polling will initiate a streamload request to be.
+     */
+    protected boolean autoRedirect;
 
     public DorisConnectionOptions(String fenodes, String username, String password) {
         this.fenodes = Preconditions.checkNotNull(fenodes, "fenodes  is empty");
         this.username = username;
         this.password = password;
+    }
+
+    public DorisConnectionOptions(String fenodes, String username, String password, boolean autoRedirect) {
+        this.fenodes = Preconditions.checkNotNull(fenodes, "fenodes  is empty");
+        this.username = username;
+        this.password = password;
+        this.autoRedirect = autoRedirect;
     }
 
     public String getFenodes() {
@@ -49,6 +61,10 @@ public class DorisConnectionOptions implements Serializable {
         return password;
     }
 
+    public boolean isAutoRedirect() {
+        return autoRedirect;
+    }
+
     /**
      * Builder for {@link DorisConnectionOptions}.
      */
@@ -56,6 +72,7 @@ public class DorisConnectionOptions implements Serializable {
         private String fenodes;
         private String username;
         private String password;
+        private boolean autoRedirect;
 
         public DorisConnectionOptionsBuilder withFenodes(String fenodes) {
             this.fenodes = fenodes;
@@ -72,8 +89,13 @@ public class DorisConnectionOptions implements Serializable {
             return this;
         }
 
+        public DorisConnectionOptionsBuilder withAutoRedirect(boolean autoRedirect) {
+            this.autoRedirect = autoRedirect;
+            return this;
+        }
+
         public DorisConnectionOptions build() {
-            return new DorisConnectionOptions(fenodes, username, password);
+            return new DorisConnectionOptions(fenodes, username, password, autoRedirect);
         }
     }
 

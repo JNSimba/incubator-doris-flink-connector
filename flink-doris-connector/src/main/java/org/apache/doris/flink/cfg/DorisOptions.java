@@ -18,9 +18,9 @@ package org.apache.doris.flink.cfg;
 
 import org.apache.doris.flink.util.IOUtils;
 
-import java.util.Properties;
-
 import static org.apache.flink.util.Preconditions.checkNotNull;
+
+import java.util.Properties;
 
 /**
  * Options for the Doris connector.
@@ -32,8 +32,8 @@ public class DorisOptions extends DorisConnectionOptions {
     private String tableIdentifier;
 
 
-    public DorisOptions(String fenodes, String username, String password, String tableIdentifier) {
-        super(fenodes, username, password);
+    public DorisOptions(String fenodes, String username, String password, String tableIdentifier, boolean redirect) {
+        super(fenodes, username, password, redirect);
         this.tableIdentifier = tableIdentifier;
     }
 
@@ -57,6 +57,7 @@ public class DorisOptions extends DorisConnectionOptions {
         private String fenodes;
         private String username;
         private String password;
+        private boolean autoRedirect;
         private String tableIdentifier;
 
         /**
@@ -91,11 +92,15 @@ public class DorisOptions extends DorisConnectionOptions {
             return this;
         }
 
+        public Builder setAutoRedirect(boolean autoRedirect) {
+            this.autoRedirect = autoRedirect;
+            return this;
+        }
 
         public DorisOptions build() {
             checkNotNull(fenodes, "No fenodes supplied.");
             checkNotNull(tableIdentifier, "No tableIdentifier supplied.");
-            return new DorisOptions(fenodes, username, password, tableIdentifier);
+            return new DorisOptions(fenodes, username, password, tableIdentifier, autoRedirect);
         }
     }
 

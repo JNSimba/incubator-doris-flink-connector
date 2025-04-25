@@ -17,19 +17,13 @@
 
 package org.apache.doris.flink.rest;
 
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import org.apache.commons.io.IOUtils;
+import org.apache.doris.flink.cfg.ConfigurationOptions;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
-import org.apache.doris.flink.exception.DorisRuntimeException;
-import org.apache.doris.flink.exception.IllegalArgumentException;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.doris.flink.cfg.ConfigurationOptions;
 import org.apache.doris.flink.exception.ConnectedFailedException;
 import org.apache.doris.flink.exception.DorisException;
+import org.apache.doris.flink.exception.DorisRuntimeException;
+import org.apache.doris.flink.exception.IllegalArgumentException;
 import org.apache.doris.flink.exception.ShouldNeverHappenException;
 import org.apache.doris.flink.rest.models.Backend;
 import org.apache.doris.flink.rest.models.BackendRow;
@@ -37,6 +31,18 @@ import org.apache.doris.flink.rest.models.BackendV2;
 import org.apache.doris.flink.rest.models.QueryPlan;
 import org.apache.doris.flink.rest.models.Schema;
 import org.apache.doris.flink.rest.models.Tablet;
+
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
+import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE;
+import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE_DEFAULT;
+import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE_MIN;
+import static org.apache.doris.flink.util.ErrorMessages.CONNECT_FAILED_MESSAGE;
+import static org.apache.doris.flink.util.ErrorMessages.ILLEGAL_ARGUMENT_MESSAGE;
+import static org.apache.doris.flink.util.ErrorMessages.SHOULD_NOT_HAPPEN_MESSAGE;
 import org.apache.flink.calcite.shaded.com.google.common.annotations.VisibleForTesting;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.config.RequestConfig;
@@ -44,7 +50,6 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.entity.StringEntity;
-
 import org.slf4j.Logger;
 
 import java.io.BufferedReader;
@@ -66,13 +71,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-
-import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE;
-import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE_DEFAULT;
-import static org.apache.doris.flink.cfg.ConfigurationOptions.DORIS_TABLET_SIZE_MIN;
-import static org.apache.doris.flink.util.ErrorMessages.CONNECT_FAILED_MESSAGE;
-import static org.apache.doris.flink.util.ErrorMessages.ILLEGAL_ARGUMENT_MESSAGE;
-import static org.apache.doris.flink.util.ErrorMessages.SHOULD_NOT_HAPPEN_MESSAGE;
 
 
 /**
@@ -358,6 +356,11 @@ public class RestService implements Serializable {
     public static List<BackendV2.BackendRowV2> getBackendsV2(DorisOptions options, DorisReadOptions readOptions, Logger logger) {
         String feNodes = options.getFenodes();
         List<String> feNodeList = allEndpoints(feNodes, logger);
+
+        if(options.isAutoRedirect() && !feNodeList.isEmpty()){
+            return convert(feNodeList);
+        }
+
         for (String feNode: feNodeList) {
             try {
                 String beUrl = "http://" + feNode + BACKENDS_V2;
@@ -373,6 +376,21 @@ public class RestService implements Serializable {
         String errMsg = "No Doris FE is available, please check configuration";
         logger.error(errMsg);
         throw new DorisRuntimeException(errMsg);
+    }
+
+    /**
+     * When the user turns on redirection,
+     * there is no need to explicitly obtain the be list, just treat the fe list as the be list.
+     * @param feNodeList
+     * @return
+     */
+    private static List<BackendV2.BackendRowV2> convert(List<String> feNodeList){
+        List<BackendV2.BackendRowV2> nodeList = new ArrayList<>();
+        for(String node : feNodeList){
+            String[] split = node.split(":");
+            nodeList.add(BackendV2.BackendRowV2.of(split[0], Integer.valueOf(split[1]), true));
+        }
+        return nodeList;
     }
 
     static List<BackendV2.BackendRowV2> parseBackendV2(String response, Logger logger) {
