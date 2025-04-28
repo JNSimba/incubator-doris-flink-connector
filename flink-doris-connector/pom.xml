@@ -137,7 +137,6 @@ under the License.
             <groupId>org.apache.flink</groupId>
             <artifactId>${flink.python.id}</artifactId>
             <version>${flink.version}</version>
-            <scope>provided</scope>
         </dependency>
 
         <dependency>
@@ -269,92 +268,12 @@ under the License.
             <version>${log4j.version}</version>
             <scope>test</scope>
         </dependency>
-        <!-- use cdc bundled jar for kafka connect class-->
-        <dependency>
-            <groupId>org.apache.flink</groupId>
-            <artifactId>flink-sql-connector-mysql-cdc</artifactId>
-            <version>${flink.sql.cdc.version}</version>
-            <scope>provided</scope>
-            <exclusions>
-                <exclusion>
-                    <artifactId>flink-shaded-guava</artifactId>
-                    <groupId>org.apache.flink</groupId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.flink</groupId>
-            <artifactId>flink-sql-connector-oracle-cdc</artifactId>
-            <version>${flink.sql.cdc.version}</version>
-            <scope>provided</scope>
-            <exclusions>
-                <exclusion>
-                    <artifactId>flink-shaded-guava</artifactId>
-                    <groupId>org.apache.flink</groupId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.flink</groupId>
-            <artifactId>flink-sql-connector-postgres-cdc</artifactId>
-            <version>${flink.sql.cdc.version}</version>
-            <scope>provided</scope>
-            <exclusions>
-                <exclusion>
-                    <artifactId>flink-shaded-guava</artifactId>
-                    <groupId>org.apache.flink</groupId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.flink</groupId>
-            <artifactId>flink-sql-connector-sqlserver-cdc</artifactId>
-            <version>${flink.sql.cdc.version}</version>
-            <scope>provided</scope>
-            <exclusions>
-                <exclusion>
-                    <artifactId>flink-shaded-guava</artifactId>
-                    <groupId>org.apache.flink</groupId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.flink</groupId>
-            <artifactId>flink-sql-connector-db2-cdc</artifactId>
-            <version>${flink.sql.cdc.version}</version>
-            <scope>provided</scope>
-            <exclusions>
-                <exclusion>
-                    <artifactId>flink-shaded-guava</artifactId>
-                    <groupId>org.apache.flink</groupId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.flink</groupId>
-            <artifactId>flink-sql-connector-mongodb-cdc</artifactId>
-            <!-- the dependency is available only for stable releases. -->
-            <version>${flink.sql.cdc.version}</version>
-            <scope>provided</scope>
-            <exclusions>
-                <exclusion>
-                    <artifactId>flink-shaded-guava</artifactId>
-                    <groupId>org.apache.flink</groupId>
-                </exclusion>
-            </exclusions>
-        </dependency>
         <!-- add drivers for FLINK-35055 -->
         <dependency>
             <groupId>mysql</groupId>
             <artifactId>mysql-connector-java</artifactId>
             <version>${mysql.driver.version}</version>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.oracle.ojdbc</groupId>
-            <artifactId>ojdbc8</artifactId>
-            <version>${ojdbc.version}</version>
-            <scope>provided</scope>
         </dependency>
         <!-- flink cdc end -->
         <dependency>
