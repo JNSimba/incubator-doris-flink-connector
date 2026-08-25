@@ -24,6 +24,7 @@ import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 import org.apache.doris.flink.rest.PartitionDefinition;
 import org.apache.doris.flink.rest.RestService;
+import org.apache.doris.flink.source.DorisSourceScanMode;
 import org.apache.doris.flink.source.split.DorisSnapshotSplit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,6 +89,16 @@ final class DorisSnapshotSplitAssigner implements DorisSplitAssigner<DorisSnapsh
                         RestService.findPartitions(options, readOptions, LOG);
                 for (int index = 0; index < partitions.size(); index++) {
                     PartitionDefinition partition = partitions.get(index);
+                    // Initial snapshots always use Flight SQL, which does not need the Thrift plan.
+                    if (readOptions.getScanMode() == DorisSourceScanMode.INITIAL) {
+                        partition =
+                                new PartitionDefinition(
+                                        partition.getDatabase(),
+                                        partition.getTable(),
+                                        partition.getBeAddress(),
+                                        partition.getTabletIds(),
+                                        "");
+                    }
                     String splitId = SNAPSHOT_SPLIT_PREFIX + partition.getBeAddress() + "-" + index;
                     splits.add(new DorisSnapshotSplit(splitId, partition));
                 }
