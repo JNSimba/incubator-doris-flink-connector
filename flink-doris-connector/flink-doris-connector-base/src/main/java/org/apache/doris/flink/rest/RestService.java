@@ -262,7 +262,7 @@ public class RestService implements Serializable {
                         .build();
 
         request.setConfig(requestConfig);
-        logger.info(
+        logger.debug(
                 "Send request to Doris FE '{}' with user '{}'.",
                 request.getURI(),
                 options.getUsername());
