@@ -303,7 +303,7 @@ public class DorisFlightValueReader extends ValueReader implements AutoCloseable
                                 "Flight SQL scan finished, split: {}, records: {}",
                                 split.splitId(),
                                 readRowCount);
-                    } else if (!eos.get()) {
+                    } else {
                         rowBatch =
                                 new RowBatch(
                                                 arrowReader,
