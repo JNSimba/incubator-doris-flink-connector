@@ -21,11 +21,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -35,13 +38,53 @@ import static org.mockito.Mockito.when;
 class DorisOffsetPublisherTest {
     private final JdbcConnectionProvider connectionProvider = mock(JdbcConnectionProvider.class);
     private final Connection connection = mock(Connection.class);
+    private final DatabaseMetaData metadata = mock(DatabaseMetaData.class);
+    private final ResultSet tables = mock(ResultSet.class);
     private final PreparedStatement statement = mock(PreparedStatement.class);
 
     @BeforeEach
     void setUp() throws Exception {
         when(connectionProvider.getOrEstablishConnection()).thenReturn(connection);
+        when(connection.getMetaData()).thenReturn(metadata);
+        when(metadata.getTables("ops", null, "flink_source_offsets", null)).thenReturn(tables);
         when(connection.prepareStatement(any())).thenReturn(statement);
         when(statement.executeUpdate()).thenReturn(1);
+    }
+
+    @Test
+    void validatesExistingOffsetTable() throws Exception {
+        when(tables.next()).thenReturn(true);
+        when(tables.getString("TABLE_NAME")).thenReturn("flink_source_offsets");
+        DorisOffsetPublisher publisher =
+                new DorisOffsetPublisher(
+                        connectionProvider, "ops.flink_source_offsets", "prod.sales.orders");
+
+        assertThatCode(publisher::validateOffsetTable).doesNotThrowAnyException();
+    }
+
+    @Test
+    void rejectsWildcardTableNameMatch() throws Exception {
+        when(tables.next()).thenReturn(true, false);
+        when(tables.getString("TABLE_NAME")).thenReturn("flinkXsourceXoffsets");
+        DorisOffsetPublisher publisher =
+                new DorisOffsetPublisher(
+                        connectionProvider, "ops.flink_source_offsets", "prod.sales.orders");
+
+        assertThatThrownBy(publisher::validateOffsetTable)
+                .hasMessageContaining("Offset table does not exist: ops.flink_source_offsets");
+    }
+
+    @Test
+    void failsValidationWhenJdbcDriverIsMissing() throws Exception {
+        when(connectionProvider.getOrEstablishConnection())
+                .thenThrow(new ClassNotFoundException("com.mysql.cj.jdbc.Driver"));
+        DorisOffsetPublisher publisher =
+                new DorisOffsetPublisher(
+                        connectionProvider, "ops.flink_source_offsets", "prod.sales.orders");
+
+        assertThatThrownBy(publisher::validateOffsetTable)
+                .hasMessageContaining("Failed to validate offset table: ops.flink_source_offsets")
+                .hasCauseInstanceOf(ClassNotFoundException.class);
     }
 
     @Test

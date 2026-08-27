@@ -190,16 +190,21 @@ class DorisSourceOptionsTest {
                                                 .setBinlogConsumerId("prod.sales.orders")
                                                 .build()))
                 .hasMessageContaining("jdbc-url");
-        assertThat(
-                        buildSource(
-                                DorisReadOptions.builder()
-                                        .setScanMode(DorisSourceScanMode.LATEST)
-                                        .setBinlogOffsetTable("ops.flink_source_offsets")
-                                        .setBinlogConsumerId("prod.sales.orders")
-                                        .build(),
-                                "db.table",
-                                "jdbc:mysql://127.0.0.1:9030"))
-                .isNotNull();
+    }
+
+    @Test
+    void validatesOffsetTableBeforeCreatingSource() {
+        assertThatThrownBy(
+                        () ->
+                                buildSource(
+                                        DorisReadOptions.builder()
+                                                .setScanMode(DorisSourceScanMode.LATEST)
+                                                .setBinlogOffsetTable("ops.flink_source_offsets")
+                                                .setBinlogConsumerId("prod.sales.orders")
+                                                .build(),
+                                        "db.table",
+                                        "jdbc:mysql://127.0.0.1:1?connectTimeout=100"))
+                .hasMessageContaining("Failed to validate offset table: ops.flink_source_offsets");
     }
 
     @Test
