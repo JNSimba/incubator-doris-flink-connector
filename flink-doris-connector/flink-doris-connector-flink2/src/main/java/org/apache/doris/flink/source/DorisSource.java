@@ -31,11 +31,13 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.doris.flink.connection.SimpleJdbcConnectionProvider;
 import org.apache.doris.flink.deserialization.DorisDeserializationSchema;
 import org.apache.doris.flink.source.assigners.DorisSourceSplitAssigner;
 import org.apache.doris.flink.source.enumerator.DorisSourceCheckpoint;
 import org.apache.doris.flink.source.enumerator.DorisSourceCheckpointSerializer;
 import org.apache.doris.flink.source.enumerator.DorisSourceEnumerator;
+import org.apache.doris.flink.source.reader.DorisOffsetPublisher;
 import org.apache.doris.flink.source.reader.DorisRecordEmitter;
 import org.apache.doris.flink.source.reader.DorisSourceFetcherManager;
 import org.apache.doris.flink.source.reader.DorisSourceReader;
@@ -235,6 +237,13 @@ public class DorisSource<OUT>
                 Preconditions.checkNotNull(
                         options.getJdbcUrl(),
                         "jdbc-url is required when source.binlog.offset-table is configured");
+                try (DorisOffsetPublisher publisher =
+                        new DorisOffsetPublisher(
+                                new SimpleJdbcConnectionProvider(options),
+                                offsetTable,
+                                consumerId)) {
+                    publisher.validateOffsetTable();
+                }
             }
             return new DorisSource<>(options, readOptions, boundedness, deserializer);
         }

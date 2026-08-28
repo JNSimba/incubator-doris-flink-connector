@@ -80,6 +80,7 @@ public class DorisFlightValueReader extends ValueReader implements AutoCloseable
     AdbcStatement.QueryResult queryResult;
     protected ArrowReader arrowReader;
     protected AtomicBoolean eos = new AtomicBoolean(false);
+    private long readRowCount;
 
     public DorisFlightValueReader(
             DorisSourceSplit split, DorisOptions options, DorisReadOptions readOptions) {
@@ -297,7 +298,12 @@ public class DorisFlightValueReader extends ValueReader implements AutoCloseable
                 }
                 if (!eos.get()) {
                     eos.set(!arrowReader.loadNextBatch());
-                    if (!eos.get()) {
+                    if (eos.get()) {
+                        LOG.info(
+                                "Flight SQL scan finished, split: {}, records: {}",
+                                split.splitId(),
+                                readRowCount);
+                    } else {
                         rowBatch =
                                 new RowBatch(
                                                 arrowReader,
@@ -330,7 +336,9 @@ public class DorisFlightValueReader extends ValueReader implements AutoCloseable
             LOG.error(SHOULD_NOT_HAPPEN_MESSAGE);
             throw new ShouldNeverHappenException();
         }
-        return rowBatch.nextSourceRecord();
+        DorisSourceRecord record = rowBatch.nextSourceRecord();
+        readRowCount++;
+        return record;
     }
 
     @Override

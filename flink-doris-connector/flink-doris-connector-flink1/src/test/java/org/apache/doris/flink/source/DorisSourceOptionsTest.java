@@ -23,11 +23,18 @@ import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
 import org.apache.doris.flink.deserialization.SimpleListDeserializationSchema;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 
+import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.util.List;
+import java.util.Properties;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mockStatic;
 
 class DorisSourceOptionsTest {
 
@@ -190,16 +197,31 @@ class DorisSourceOptionsTest {
                                                 .setBinlogConsumerId("prod.sales.orders")
                                                 .build()))
                 .hasMessageContaining("jdbc-url");
-        assertThat(
-                        buildSource(
-                                DorisReadOptions.builder()
-                                        .setScanMode(DorisSourceScanMode.LATEST)
-                                        .setBinlogOffsetTable("ops.flink_source_offsets")
-                                        .setBinlogConsumerId("prod.sales.orders")
-                                        .build(),
-                                "db.table",
-                                "jdbc:mysql://127.0.0.1:9030"))
-                .isNotNull();
+    }
+
+    @Test
+    void validatesOffsetTableBeforeCreatingSource() {
+        SQLException failure = new SQLException("unavailable");
+        try (MockedStatic<DriverManager> driverManager = mockStatic(DriverManager.class)) {
+            driverManager
+                    .when(() -> DriverManager.getConnection(anyString(), any(Properties.class)))
+                    .thenThrow(failure);
+
+            assertThatThrownBy(
+                            () ->
+                                    buildSource(
+                                            DorisReadOptions.builder()
+                                                    .setScanMode(DorisSourceScanMode.LATEST)
+                                                    .setBinlogOffsetTable(
+                                                            "ops.flink_source_offsets")
+                                                    .setBinlogConsumerId("prod.sales.orders")
+                                                    .build(),
+                                            "db.table",
+                                            "jdbc:mysql://127.0.0.1:9030"))
+                    .hasMessageContaining(
+                            "Failed to validate offset table: ops.flink_source_offsets")
+                    .hasCauseInstanceOf(SQLException.class);
+        }
     }
 
     @Test

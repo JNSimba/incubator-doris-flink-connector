@@ -43,7 +43,6 @@ import org.apache.doris.flink.sink.batch.DorisBatchSink;
 import org.apache.doris.flink.sink.writer.serializer.SimpleStringSerializer;
 import org.apache.doris.flink.table.DorisConfigOptions;
 import org.apache.doris.flink.utils.MockSource;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -51,6 +50,7 @@ import org.junit.runners.Parameterized;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.Connection;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
@@ -639,10 +639,7 @@ public class DorisSinkITCase extends AbstractITCaseService {
         String query =
                 String.format("select id,task_id from %s.%s order by 1,2", DATABASE, TABLE_CSV_JM);
 
-        List<String> actualResult =
-                ContainerUtils.getResult(getDorisQueryConnection(), LOG, expected, query, 2);
-        Assert.assertTrue(
-                actualResult.size() >= expected.size() && actualResult.containsAll(expected));
+        waitForExpectedResult(expected, query);
     }
 
     @Test
@@ -706,10 +703,22 @@ public class DorisSinkITCase extends AbstractITCaseService {
         String query =
                 String.format("select id,task_id from %s.%s order by 1,2", DATABASE, TABLE_CSV_TM);
 
-        List<String> actualResult =
-                ContainerUtils.getResult(getDorisQueryConnection(), LOG, expected, query, 2);
-        Assert.assertTrue(
-                actualResult.size() >= expected.size() && actualResult.containsAll(expected));
+        waitForExpectedResult(expected, query);
+    }
+
+    private void waitForExpectedResult(List<String> expected, String query) throws Exception {
+        try (Connection connection = getDorisQueryConnection()) {
+            waitUntilCondition(
+                    () -> {
+                        List<String> actualResult =
+                                ContainerUtils.getResult(connection, LOG, expected, query, 2);
+                        return actualResult.size() >= expected.size()
+                                && actualResult.containsAll(expected);
+                    },
+                    Deadline.fromNow(Duration.ofSeconds(30)),
+                    200,
+                    "Sink result did not become visible in time.");
+        }
     }
 
     @Test

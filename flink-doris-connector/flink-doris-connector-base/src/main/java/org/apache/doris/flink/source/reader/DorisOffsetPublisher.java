@@ -20,12 +20,16 @@ import org.apache.doris.flink.connection.JdbcConnectionProvider;
 import org.apache.doris.flink.exception.DorisRuntimeException;
 
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.util.function.Consumer;
 
 /** Publishes completed-checkpoint offsets through Doris JDBC. */
 public class DorisOffsetPublisher implements AutoCloseable {
     private final JdbcConnectionProvider connectionProvider;
+    private final String database;
+    private final String table;
     private final String insertSql;
     private final String consumerId;
 
@@ -36,14 +40,34 @@ public class DorisOffsetPublisher implements AutoCloseable {
         if (tableParts.length != 2 || tableParts[0].isEmpty() || tableParts[1].isEmpty()) {
             throw new IllegalArgumentException("Offset table must use database.table format");
         }
+        this.database = tableParts[0];
+        this.table = tableParts[1];
         this.insertSql =
                 "INSERT INTO "
-                        + quoteIdentifier(tableParts[0])
+                        + quoteIdentifier(database)
                         + "."
-                        + quoteIdentifier(tableParts[1])
+                        + quoteIdentifier(table)
                         + " (`consumer_id`, `offset_timestamp`, `update_time`) "
                         + "VALUES (?, ?, CURRENT_TIMESTAMP(3))";
         this.consumerId = consumerId;
+    }
+
+    public void validateOffsetTable() {
+        try {
+            Connection connection = connectionProvider.getOrEstablishConnection();
+            DatabaseMetaData metadata = connection.getMetaData();
+            try (ResultSet tables = metadata.getTables(database, null, table, null)) {
+                while (tables.next()) {
+                    if (table.equals(tables.getString("TABLE_NAME"))) {
+                        return;
+                    }
+                }
+            }
+        } catch (Exception error) {
+            throw new DorisRuntimeException(
+                    "Failed to validate offset table: " + database + "." + table, error);
+        }
+        throw new DorisRuntimeException("Offset table does not exist: " + database + "." + table);
     }
 
     /** Invokes the callback with null on success or the publication error on failure. */
