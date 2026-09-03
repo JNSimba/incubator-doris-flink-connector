@@ -547,15 +547,20 @@ public class RestService implements Serializable {
                 CloseableHttpResponse response = httpclient.execute(request)) {
             final int statusCode = response.getStatusLine().getStatusCode();
             final String reasonPhrase = response.getStatusLine().getReasonPhrase();
-            if (statusCode == 200 && response.getEntity() != null) {
-                String responseEntity = EntityUtils.toString(response.getEntity());
+            String responseEntity =
+                    response.getEntity() == null
+                            ? null
+                            : EntityUtils.toString(response.getEntity());
+            if (statusCode == 200 && responseEntity != null) {
                 return objectMapper.readTree(responseEntity);
             } else {
                 throw new DorisRuntimeException(
                         "Failed to parse response, status: "
                                 + statusCode
                                 + ", reason: "
-                                + reasonPhrase);
+                                + reasonPhrase
+                                + ", response: "
+                                + responseEntity);
             }
         } catch (Exception e) {
             logger.trace("request error,", e);
@@ -598,7 +603,7 @@ public class RestService implements Serializable {
             JsonNode response = handleResponse(httpPost, options.getTlsOptions(), logger);
             if (response.has("code") && response.path("code").asInt() != REST_RESPONSE_CODE_OK) {
                 throw new DorisRuntimeException(
-                        "Failed to execute Doris statement: " + response.path("msg").asText());
+                        "Failed to execute Doris statement, response: " + response);
             }
             return response;
         } catch (DorisRuntimeException e) {

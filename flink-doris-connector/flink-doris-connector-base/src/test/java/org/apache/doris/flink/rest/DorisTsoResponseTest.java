@@ -18,8 +18,10 @@
 package org.apache.doris.flink.rest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sun.net.httpserver.HttpServer;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.cfg.DorisReadOptions;
+import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.util.EntityUtils;
@@ -28,10 +30,13 @@ import org.mockito.MockedStatic;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mockStatic;
@@ -46,6 +51,57 @@ class DorisTsoResponseTest {
                 .isEqualTo("2026-07-20 10:00:00");
         assertThatThrownBy(() -> RestService.validateCurrentTimestamp("2026-07-20 10:00:00.123000"))
                 .hasMessageContaining("yyyy-MM-dd HH:mm:ss");
+    }
+
+    @Test
+    void includesCompleteStatementResponseInError() throws Exception {
+        DorisOptions options =
+                DorisOptions.builder()
+                        .setFenodes("frontend:8030")
+                        .setUsername("root")
+                        .setPassword("")
+                        .build();
+        DorisReadOptions readOptions = DorisReadOptions.builder().setRequestRetries(1).build();
+        String response =
+                "{\"code\":1,\"msg\":\"Error\",\"data\":\"Table [tso_status] does not exist\"}";
+
+        try (MockedStatic<RestService> mocked = mockStatic(RestService.class, CALLS_REAL_METHODS)) {
+            mocked.when(() -> RestService.handleResponse(any(), any(), any()))
+                    .thenReturn(new ObjectMapper().readTree(response));
+
+            Throwable error =
+                    catchThrowable(
+                            () -> RestService.resolveCurrentTimestamp(options, readOptions, LOG));
+
+            assertThat(error)
+                    .hasMessage("Failed to resolve current Doris timestamp after 1 attempts");
+            assertThat(error.getCause()).hasMessageContaining(response);
+        }
+    }
+
+    @Test
+    void includesHttpErrorResponseBody() throws Exception {
+        byte[] response =
+                "{\"code\":500,\"msg\":\"Error\",\"data\":\"Detailed failure\"}"
+                        .getBytes(StandardCharsets.UTF_8);
+        HttpServer server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+        server.createContext(
+                "/",
+                exchange -> {
+                    exchange.sendResponseHeaders(500, response.length);
+                    exchange.getResponseBody().write(response);
+                    exchange.close();
+                });
+        server.start();
+
+        try {
+            HttpGet request =
+                    new HttpGet("http://localhost:" + server.getAddress().getPort() + "/");
+            assertThatThrownBy(() -> RestService.handleResponse(request, LOG))
+                    .hasMessageContaining(new String(response, StandardCharsets.UTF_8));
+        } finally {
+            server.stop(0);
+        }
     }
 
     @Test
